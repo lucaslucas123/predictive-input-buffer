@@ -1,4 +1,3 @@
-
 #include <Geode/Geode.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
@@ -57,7 +56,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
         return horizon;
     }
     int chooseDelay(PlayerObject* real,bool down,bool oldDown,int limit) {
-        if(!pib::probe || pib::owner!=this || !real || real->m_isDead || real->m_isPlatformer) return 0;
+        if(!pib::probe || static_cast<GJBaseGameLayer*>(pib::owner)!=static_cast<GJBaseGameLayer*>(this) || !real || real->m_isDead || real->m_isPlatformer) return 0;
         int horizon=limit+24;
         auto savedGameState=m_gameState;
         pib::predicting=true;
@@ -83,7 +82,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
         if(pib::predicting) return;
         auto f=m_fields.self();
         if(f->generation!=pib::generation) flushPending();
-        if(button!=1 || pib::mode==4 || pib::owner!=this) {
+        if(button!=1 || pib::mode==4 || static_cast<GJBaseGameLayer*>(pib::owner)!=static_cast<GJBaseGameLayer*>(this)) {
             GJBaseGameLayer::handleButton(down,button,player1);
             if(button==1) f->applied[player1?0:1]=down;
             return;
@@ -110,7 +109,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
             } else ++it;
         }
         GJBaseGameLayer::processCommands(dt,half,last);
-        if(pib::owner==this) if(auto label=typeinfo_cast<CCLabelBMFont*>(getChildByID("pib-status")))
+        if(static_cast<GJBaseGameLayer*>(pib::owner)==static_cast<GJBaseGameLayer*>(this)) if(auto label=typeinfo_cast<CCLabelBMFont*>(getChildByID("pib-status")))
             label->setString(pib::status().c_str());
     }
     void collisionCheckObjects(PlayerObject* p,gd::vector<GameObject*>* objects,int count,float dt) {
@@ -145,7 +144,7 @@ class $modify(PIBPlay, PlayLayer) {
         addChild(label,1000);
         return true;
     }
-    void resetLevel() {
+    void resetLevel() override {
         auto base=static_cast<PIBGame*>(static_cast<GJBaseGameLayer*>(this));
         base->m_fields->pending.clear(); base->m_fields->applied={false,false};
         pib::lastDelay=0;
@@ -157,7 +156,7 @@ class $modify(PIBPlay, PlayLayer) {
     }
     void playEndAnimationToPos(CCPoint pos) { if(!pib::predicting) PlayLayer::playEndAnimationToPos(pos); }
     void onQuit() {
-        if(pib::owner==this) { pib::probe=nullptr; pib::owner=nullptr; }
+        if(static_cast<GJBaseGameLayer*>(pib::owner)==static_cast<GJBaseGameLayer*>(this)) { pib::probe=nullptr; pib::owner=nullptr; }
         PlayLayer::onQuit();
     }
 };
@@ -187,4 +186,3 @@ class $modify(PIBKeyboard, CCKeyboardDispatcher) {
         return CCKeyboardDispatcher::dispatchKeyboardMSG(key,down,repeat,timestamp);
     }
 };
-
