@@ -58,7 +58,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
     int chooseDelay(PlayerObject* real,bool down,bool oldDown,int limit) {
         if(!pib::probe || static_cast<GJBaseGameLayer*>(pib::owner)!=static_cast<GJBaseGameLayer*>(this) || !real || real->m_isDead || real->m_isPlatformer) return 0;
         int horizon=limit+24;
-        auto savedGameState=m_gameState;
+
         pib::predicting=true;
         int best=survival(real,oldDown,down,0,horizon), selected=0;
         if(best<horizon) for(int delay=1;delay<=limit;++delay) {
@@ -66,7 +66,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
             if(score==horizon) { selected=delay; break; }
 
         }
-        m_gameState=savedGameState;
+
         pib::predicting=false;
         return selected;
     }
