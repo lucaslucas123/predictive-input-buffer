@@ -27,7 +27,7 @@ namespace pib {
             windows[mode],mode==3?" (wave 8)":"",lastDelay);
     }
 }
-struct Pending { bool down, player1; int ticks; };
+struct Pending { bool down, player1; int ticks, delay; };
 class $modify(PIBGame, GJBaseGameLayer) {
     struct Fields {
         std::deque<Pending> pending;
@@ -59,6 +59,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
     int chooseDelay(PlayerObject* real,bool down,bool oldDown,int limit) {
         if(!pib::probe || pib::owner!=this || !real || real->m_isDead || real->m_isPlatformer) return 0;
         int horizon=limit+24;
+        auto savedGameState=m_gameState;
         pib::predicting=true;
         int best=survival(real,oldDown,down,0,horizon), selected=0;
         if(best<horizon) for(int delay=1;delay<=limit;++delay) {
@@ -66,6 +67,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
             if(score==horizon) { selected=delay; break; }
 
         }
+        m_gameState=savedGameState;
         pib::predicting=false;
         return selected;
     }
@@ -88,13 +90,13 @@ class $modify(PIBGame, GJBaseGameLayer) {
         }
         // Preserve input order: a release must not overtake its delayed press.
         int preceding=0;
-        for(auto const& e:f->pending) if(e.player1==player1) preceding=std::max(preceding,e.ticks);
+        for(auto const& e:f->pending) if(e.player1==player1) preceding=std::max(preceding,e.delay);
         auto real=player1?m_player1:m_player2;
         int limit=pib::windows[pib::mode];
         if(real && real->m_isDart) limit=std::min(limit,8);
         int delay=preceding?preceding:chooseDelay(real,down,f->applied[player1?0:1],limit);
         pib::lastDelay=delay;
-        if(delay>0) f->pending.push_back({down,player1,delay});
+        if(delay>0) f->pending.push_back({down,player1,delay,delay});
         else { GJBaseGameLayer::handleButton(down,button,player1); f->applied[player1?0:1]=down; }
     }
     void processCommands(float dt,bool half,bool last) {
