@@ -22,8 +22,8 @@ namespace pib {
     bool isProbe(PlayerObject* p) { return predicting && p==probe; }
     std::string status() {
         if(mode==4) return "PIB experimental: OFF | F6";
-        return fmt::format("PIB: mode {} | {} ticks{} | last +{} | F6",mode+1,
-            windows[mode],mode==3?" (wave 8)":"",lastDelay);
+        return fmt::format("PIB: mode {} | {} ticks | wave: RAW | last +{} | F6",mode+1,
+            windows[mode],lastDelay);
     }
 }
 struct Pending { bool down, player1; int ticks, delay; };
@@ -56,7 +56,7 @@ class $modify(PIBGame, GJBaseGameLayer) {
         return horizon;
     }
     int chooseDelay(PlayerObject* real,bool down,bool oldDown,int limit) {
-        if(!pib::probe || static_cast<GJBaseGameLayer*>(pib::owner)!=static_cast<GJBaseGameLayer*>(this) || !real || real->m_isDead || real->m_isPlatformer) return 0;
+        if(!pib::probe || static_cast<GJBaseGameLayer*>(pib::owner)!=static_cast<GJBaseGameLayer*>(this) || !real || real->m_isDead || real->m_isPlatformer || real->m_isDart) return 0;
         int horizon=limit+24;
 
         pib::predicting=true;
@@ -82,6 +82,22 @@ class $modify(PIBGame, GJBaseGameLayer) {
         if(pib::predicting) return;
         auto f=m_fields.self();
         if(f->generation!=pib::generation) flushPending();
+        auto real=player1?m_player1:m_player2;
+        if(button==1 && real && real->m_isDart) {
+            // Never run a cloned wave through PlayerObject::update. Preserve
+            // already queued events before forwarding the new physical input.
+            for(auto it=f->pending.begin();it!=f->pending.end();) {
+                if(it->player1==player1) {
+                    GJBaseGameLayer::handleButton(it->down,1,player1);
+                    f->applied[player1?0:1]=it->down;
+                    it=f->pending.erase(it);
+                } else ++it;
+            }
+            GJBaseGameLayer::handleButton(down,button,player1);
+            f->applied[player1?0:1]=down;
+            pib::lastDelay=0;
+            return;
+        }
         if(button!=1 || pib::mode==4 || static_cast<GJBaseGameLayer*>(pib::owner)!=static_cast<GJBaseGameLayer*>(this)) {
             GJBaseGameLayer::handleButton(down,button,player1);
             if(button==1) f->applied[player1?0:1]=down;
@@ -90,7 +106,6 @@ class $modify(PIBGame, GJBaseGameLayer) {
         // Preserve input order: a release must not overtake its delayed press.
         int preceding=0;
         for(auto const& e:f->pending) if(e.player1==player1) preceding=std::max(preceding,e.delay);
-        auto real=player1?m_player1:m_player2;
         int limit=pib::windows[pib::mode];
         if(real && real->m_isDart) limit=std::min(limit,8);
         int delay=preceding?preceding:chooseDelay(real,down,f->applied[player1?0:1],limit);
@@ -102,7 +117,8 @@ class $modify(PIBGame, GJBaseGameLayer) {
         auto f=m_fields.self();
         if(f->generation!=pib::generation) flushPending();
         for(auto it=f->pending.begin();it!=f->pending.end();) {
-            if(--it->ticks<=0) {
+            auto player=it->player1?m_player1:m_player2;
+            if((player && player->m_isDart) || --it->ticks<=0) {
                 GJBaseGameLayer::handleButton(it->down,1,it->player1);
                 f->applied[it->player1?0:1]=it->down;
                 it=f->pending.erase(it);
