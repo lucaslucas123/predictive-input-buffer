@@ -14,3 +14,8 @@ endif()
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 setup_geode_mod(${PROJECT_NAME})
+# Include state definitions before compiling generated Geode bindings.
+target_precompile_headers(GeodeBindings PRIVATE
+    <Geode/binding/EffectManagerState.hpp>
+    <Geode/binding/SequenceTriggerState.hpp>
+)
